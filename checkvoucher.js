@@ -5,7 +5,7 @@
     return;
   }
 
-  // 🧑 Kiểm tra đăng nhập
+  // 🔐 Kiểm tra đăng nhập
   async function checkLogin() {
     try {
       const res = await fetch("https://shopee.vn/api/v4/account/basic/get_account_info", {
@@ -148,11 +148,12 @@
     const container = document.getElementById("voucherContent");
     if (!container) return;
 
+    // 🧠 Lấy tên voucher
     let displayName = "Voucher";
     if (voucher.voucher_card?.props?.title) {
       const t = voucher.voucher_card.props.title || "";
       const s = voucher.voucher_card.props.subtitle || "";
-      displayName = `${t}${s ? " — " + s : ""}`;
+      displayName = `${t}${s ? " " + s : ""}`; // bỏ dấu —
     } else if (voucher.spp_display_info?.voucher_header) {
       displayName = voucher.spp_display_info.voucher_header;
     } else if (voucher.icon_text) {
@@ -160,6 +161,16 @@
     } else if (voucher.title) {
       displayName = voucher.title;
     }
+
+    // 🖼️ Ưu tiên icon từ voucher_card.props.icon_hash
+    const iconHash =
+      voucher.voucher_card?.props?.icon_hash ||
+      voucher.icon_hash ||
+      null;
+    const iconUrl = iconHash ? `https://down-vn.img.susercontent.com/file/${iconHash}_tn` : null;
+
+    // 🏷️ Áp dụng
+    const applyText = voucher.icon_text || "";
 
     const code = voucher.voucher_code || "(Không có)";
     const percentageUsed = voucher.percentage_used ?? 0;
@@ -169,9 +180,6 @@
     const usageLimit = voucher.usage_limit_per_user ?? "—";
     const start = voucher.start_time ? new Date(voucher.start_time * 1000).toLocaleString("vi-VN") : "—";
     const end = voucher.end_time ? new Date(voucher.end_time * 1000).toLocaleString("vi-VN") : "—";
-    const iconHash = voucher.icon_hash
-      ? `https://down-vn.img.susercontent.com/file/${voucher.icon_hash}_tn`
-      : null;
 
     const listLink = `https://shopee.vn/search?promotionId=${promotionid}&signature=${signature}`;
     const barWidthUsed = Math.min(percentageUsed, 100);
@@ -185,8 +193,9 @@
 
     container.innerHTML = `
       <div style="text-align:center;margin-bottom:20px;">
-        ${iconHash ? `<img src="${iconHash}" style="height:70px;border-radius:8px;margin-bottom:10px;">` : ""}
+        ${iconUrl ? `<img src="${iconUrl}" style="height:70px;border-radius:8px;margin-bottom:10px;">` : ""}
         <h3 style="color:#EE4D2D;margin:0;font-size:18px;">${escapeHtml(displayName)}</h3>
+        ${applyText ? `<div style="font-size:13px;color:#555;margin-top:4px;">Áp dụng: ${escapeHtml(applyText)}</div>` : ""}
         ${progressBar}
       </div>
       <div style="display:grid;grid-template-columns: 1fr 1fr;gap:10px;font-size:14px;">
