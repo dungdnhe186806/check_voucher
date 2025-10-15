@@ -1,4 +1,33 @@
 (function () {
+  // 🧭 Kiểm tra domain
+  if (location.hostname !== "shopee.vn") {
+    alert("⚠️ Bạn phải đang ở trang Shopee.vn mới chạy được script này!");
+    return;
+  }
+
+  // 🧑 Kiểm tra đăng nhập
+  async function checkLogin() {
+    try {
+      const res = await fetch("https://shopee.vn/api/v4/account/basic/get_account_info", {
+        credentials: "include",
+      });
+      if (!res.ok) return false;
+      const json = await res.json();
+      return json?.data?.userid ? true : false;
+    } catch {
+      return false;
+    }
+  }
+
+  async function init() {
+    const loggedIn = await checkLogin();
+    if (!loggedIn) {
+      alert("🔒 Bạn cần đăng nhập Shopee trước khi sử dụng tiện ích này!");
+      return;
+    }
+    renderPopup();
+  }
+
   async function fetchVoucher(link) {
     try {
       const url = new URL(link.trim());
@@ -151,6 +180,7 @@
         <div style="width:${barWidthUsed}%;background:#EE4D2D;height:100%;"></div>
       </div>
       <div style="text-align:right;font-size:12px;color:#555;">${percentageUsed}% đã dùng</div>
+      ${fullyUsed ? `<div style="color:#d93025;font-weight:bold;text-align:center;margin-top:6px;">⚠️ Tối đa lượt dùng</div>` : ""}
     `;
 
     container.innerHTML = `
@@ -186,5 +216,5 @@
     }[c]));
   }
 
-  renderPopup();
+  init();
 })();
