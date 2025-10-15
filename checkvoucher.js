@@ -153,7 +153,7 @@
     if (voucher.voucher_card?.props?.title) {
       const t = voucher.voucher_card.props.title || "";
       const s = voucher.voucher_card.props.subtitle || "";
-      displayName = `${t}${s ? " " + s : ""}`; // bỏ dấu —
+      displayName = `${t}${s ? " " + s : ""}`;
     } else if (voucher.spp_display_info?.voucher_header) {
       displayName = voucher.spp_display_info.voucher_header;
     } else if (voucher.icon_text) {
@@ -162,16 +162,31 @@
       displayName = voucher.title;
     }
 
-    // 🖼️ Ưu tiên icon từ voucher_card.props.icon_hash
+    // 🖼️ Icon
     const iconHash =
       voucher.voucher_card?.props?.icon_hash ||
       voucher.icon_hash ||
       null;
     const iconUrl = iconHash ? `https://down-vn.img.susercontent.com/file/${iconHash}_tn` : null;
 
-    // 🏷️ Áp dụng
+    // kiểm tra nếu icon_text là shopee → thêm nền
     const applyText = voucher.icon_text || "";
+    const isShopeeIcon = applyText.toLowerCase().includes("shopee");
 
+    let iconHTML = "";
+    if (iconUrl) {
+      if (isShopeeIcon) {
+        iconHTML = `
+          <div style="background:#EE4D2D;display:inline-flex;align-items:center;justify-content:center;
+            border-radius:12px;padding:6px;margin-bottom:10px;">
+            <img src="${iconUrl}" style="height:60px;">
+          </div>`;
+      } else {
+        iconHTML = `<img src="${iconUrl}" style="height:70px;border-radius:8px;margin-bottom:10px;">`;
+      }
+    }
+
+    // 🏷️ Các thông tin khác
     const code = voucher.voucher_code || "(Không có)";
     const percentageUsed = voucher.percentage_used ?? 0;
     const percentageClaimed = voucher.percentage_claimed ?? 0;
@@ -193,14 +208,7 @@
 
     container.innerHTML = `
       <div style="text-align:center;margin-bottom:20px;">
-        ${
-          iconUrl
-            ? `<div style="background:#EE4D2D;display:inline-flex;align-items:center;justify-content:center;
-                 border-radius:12px;padding:6px;margin-bottom:10px;">
-                 <img src="${iconUrl}" style="height:60px;">
-               </div>`
-            : ""
-        }
+        ${iconHTML}
         <h3 style="color:#EE4D2D;margin:0;font-size:18px;">${escapeHtml(displayName)}</h3>
         ${applyText ? `<div style="font-size:13px;color:#555;margin-top:4px;">Áp dụng: ${escapeHtml(applyText)}</div>` : ""}
         ${progressBar}
