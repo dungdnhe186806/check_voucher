@@ -193,7 +193,14 @@
 
     container.innerHTML = `
       <div style="text-align:center;margin-bottom:20px;">
-        ${iconUrl ? `<img src="${iconUrl}" style="height:70px;border-radius:8px;margin-bottom:10px;">` : ""}
+        ${
+          iconUrl
+            ? `<div style="background:#EE4D2D;display:inline-flex;align-items:center;justify-content:center;
+                 border-radius:12px;padding:6px;margin-bottom:10px;">
+                 <img src="${iconUrl}" style="height:60px;">
+               </div>`
+            : ""
+        }
         <h3 style="color:#EE4D2D;margin:0;font-size:18px;">${escapeHtml(displayName)}</h3>
         ${applyText ? `<div style="font-size:13px;color:#555;margin-top:4px;">Áp dụng: ${escapeHtml(applyText)}</div>` : ""}
         ${progressBar}
