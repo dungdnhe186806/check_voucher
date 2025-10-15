@@ -1,7 +1,7 @@
 (function () {
-  async function fetchVoucher(inputLink) {
+  async function fetchVoucher(link) {
     try {
-      const url = new URL(inputLink.trim());
+      const url = new URL(link.trim());
       const params = url.searchParams;
       const promotionid =
         params.get("promotionId") ||
@@ -54,14 +54,65 @@
         return;
       }
 
-      renderPopup(inputLink, voucher, promotionid, signature);
+      renderVoucher(voucher, promotionid, signature);
     } catch (err) {
       console.error(err);
       alert("❌ Lỗi: " + err.message);
     }
   }
 
-  function renderPopup(inputLink, voucher, promotionid, signature) {
+  function renderPopup() {
+    const popupId = "voucherInfoPopup";
+    document.getElementById(popupId)?.remove();
+
+    const popup = document.createElement("div");
+    popup.id = popupId;
+    popup.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      z-index: 999999;
+      max-width: 480px;
+      width: 90%;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      color: #333;
+    `;
+
+    popup.innerHTML = `
+      <div style="margin-bottom:12px;text-align:center;">
+        <input type="text" id="voucherLinkInput" placeholder="📎 Dán link voucher Shopee..."
+          style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;box-sizing:border-box;">
+        <button id="loadVoucherBtn" style="margin-top:10px;background:#EE4D2D;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:bold;">
+          Tải voucher
+        </button>
+      </div>
+      <div id="voucherContent" style="margin-top:15px;"></div>
+    `;
+
+    document.body.appendChild(popup);
+
+    document.getElementById("loadVoucherBtn").onclick = () => {
+      const link = document.getElementById("voucherLinkInput").value.trim();
+      if (link) fetchVoucher(link);
+    };
+
+    document.getElementById("voucherLinkInput").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        const link = e.target.value.trim();
+        if (link) fetchVoucher(link);
+      }
+    });
+  }
+
+  function renderVoucher(voucher, promotionid, signature) {
+    const container = document.getElementById("voucherContent");
+    if (!container) return;
+
     // 🧠 Ưu tiên tên hiển thị
     let displayName = "Voucher";
     if (voucher.voucher_card?.props?.title) {
@@ -87,9 +138,9 @@
     const iconHash = voucher.icon_hash
       ? `https://down-vn.img.susercontent.com/file/${voucher.icon_hash}_tn`
       : null;
-    const barWidthUsed = Math.min(percentageUsed, 100);
-    const listLink = `https://shopee.vn/search?promotionId=${promotionid}&signature=${signature}`;
 
+    const listLink = `https://shopee.vn/search?promotionId=${promotionid}&signature=${signature}`;
+    const barWidthUsed = Math.min(percentageUsed, 100);
     const progressBar = `
       <div style="margin-top:10px;height:8px;background:#eee;border-radius:6px;overflow:hidden;">
         <div style="width:${barWidthUsed}%;background:#EE4D2D;height:100%;"></div>
@@ -97,39 +148,9 @@
       <div style="text-align:right;font-size:12px;color:#555;">${percentageUsed}% đã dùng</div>
     `;
 
-    const popupId = "voucherInfoPopup";
-    document.getElementById(popupId)?.remove();
-    const popup = document.createElement("div");
-    popup.id = popupId;
-    popup.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #fff;
-      border-radius: 16px;
-      padding: 24px;
-      z-index: 999999;
-      max-width: 480px;
-      width: 90%;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
-      font-family: 'Segoe UI', Roboto, sans-serif;
-      color: #333;
-      border-top: 5px solid ${fullyUsed ? "#888" : "#EE4D2D"};
-      animation: fadeIn 0.2s ease-out;
-    `;
-
-    popup.innerHTML = `
-      <div style="margin-bottom:16px;text-align:center;">
-        <input type="text" id="voucherLinkInput" placeholder="📎 Dán link voucher Shopee vào đây..."
-          value="${escapeHtml(inputLink)}"
-          style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;box-sizing:border-box;">
-        <button id="reloadVoucherBtn" style="margin-top:8px;background:#EE4D2D;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;">
-          🔄 Tải lại
-        </button>
-      </div>
+    container.innerHTML = `
       <div style="text-align:center;margin-bottom:20px;">
-        ${iconHash ? `<img src="${iconHash}" alt="icon" style="height:70px;border-radius:8px;margin-bottom:10px;">` : ""}
+        ${iconHash ? `<img src="${iconHash}" style="height:70px;border-radius:8px;margin-bottom:10px;">` : ""}
         <h2 style="color:#EE4D2D;margin:0;font-size:20px;">${escapeHtml(displayName)}</h2>
         ${progressBar}
       </div>
@@ -143,7 +164,6 @@
         <div><b>Kết thúc:</b></div><div style="text-align:right">${end}</div>
       </div>
       <div style="text-align:center;margin-top:20px;">
-        <button id="closeVoucherBtn" style="background:#EE4D2D;color:#fff;border:none;padding:10px 16px;margin-right:8px;border-radius:6px;cursor:pointer;font-weight:bold;">Đóng</button>
         <button id="copyVoucherBtn" style="background:#f2f2f2;color:#333;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;">Copy JSON</button>
         <a href="${listLink}" target="_blank" style="text-decoration:none;">
           <button style="background:#4285f4;color:#fff;border:none;padding:10px 16px;margin-left:8px;border-radius:6px;cursor:pointer;">📄 List</button>
@@ -151,9 +171,6 @@
       </div>
     `;
 
-    document.body.appendChild(popup);
-
-    document.getElementById("closeVoucherBtn").onclick = () => popup.remove();
     document.getElementById("copyVoucherBtn").onclick = async () => {
       try {
         await navigator.clipboard.writeText(JSON.stringify(voucher, null, 2));
@@ -162,11 +179,6 @@
         console.log(voucher);
         alert("⚠️ Không thể copy — mở console để lấy dữ liệu.");
       }
-    };
-
-    document.getElementById("reloadVoucherBtn").onclick = () => {
-      const newLink = document.getElementById("voucherLinkInput").value.trim();
-      if (newLink) fetchVoucher(newLink);
     };
   }
 
@@ -180,6 +192,5 @@
     }[c]));
   }
 
-  // 🚀 Khởi chạy popup trống ban đầu
-  renderPopup("", {}, "", "");
+  renderPopup();
 })();
