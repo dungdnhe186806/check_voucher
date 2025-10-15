@@ -119,7 +119,7 @@
         <button id="closePopupBtn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">✖</button>
       </div>
       <div style="margin-bottom:12px;text-align:center;">
-        <input type="text" id="voucherLinkInput" placeholder="📎 Dán link voucher Shopee..."
+        <input type="text" id="voucherLinkInput" placeholder="Dán link voucher Shopee..."
           style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;box-sizing:border-box;">
         <button id="loadVoucherBtn" style="margin-top:10px;background:#EE4D2D;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:bold;">
           Tải voucher
@@ -216,7 +216,7 @@
       </div>
       <div style="text-align:center;margin-top:20px;">
         <a href="${listLink}" target="_blank" style="text-decoration:none;">
-          <button style="background:#4285f4;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;">📄 List</button>
+          <button style="background:#4285f4;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;">List</button>
         </a>
       </div>
     `;
