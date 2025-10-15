@@ -78,12 +78,17 @@
       z-index: 999999;
       max-width: 480px;
       width: 90%;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.25);
       font-family: 'Segoe UI', Roboto, sans-serif;
       color: #333;
+      animation: fadeIn 0.25s ease-out;
     `;
 
     popup.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+        <h2 style="font-size:18px;margin:0;color:#EE4D2D;">Voucher Checker</h2>
+        <button id="closePopupBtn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">✖</button>
+      </div>
       <div style="margin-bottom:12px;text-align:center;">
         <input type="text" id="voucherLinkInput" placeholder="📎 Dán link voucher Shopee..."
           style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;box-sizing:border-box;">
@@ -96,6 +101,7 @@
 
     document.body.appendChild(popup);
 
+    document.getElementById("closePopupBtn").onclick = () => popup.remove();
     document.getElementById("loadVoucherBtn").onclick = () => {
       const link = document.getElementById("voucherLinkInput").value.trim();
       if (link) fetchVoucher(link);
@@ -113,7 +119,6 @@
     const container = document.getElementById("voucherContent");
     if (!container) return;
 
-    // 🧠 Ưu tiên tên hiển thị
     let displayName = "Voucher";
     if (voucher.voucher_card?.props?.title) {
       const t = voucher.voucher_card.props.title || "";
@@ -151,11 +156,11 @@
     container.innerHTML = `
       <div style="text-align:center;margin-bottom:20px;">
         ${iconHash ? `<img src="${iconHash}" style="height:70px;border-radius:8px;margin-bottom:10px;">` : ""}
-        <h2 style="color:#EE4D2D;margin:0;font-size:20px;">${escapeHtml(displayName)}</h2>
+        <h3 style="color:#EE4D2D;margin:0;font-size:18px;">${escapeHtml(displayName)}</h3>
         ${progressBar}
       </div>
       <div style="display:grid;grid-template-columns: 1fr 1fr;gap:10px;font-size:14px;">
-        <div><b>Mã:</b></div><div style="text-align:right">${code}</div>
+        <div><b>Code:</b></div><div style="text-align:right">${code}</div>
         <div><b>Giới hạn/user:</b></div><div style="text-align:right">${usageLimit}</div>
         <div><b>fully_used:</b></div><div style="text-align:right">${fullyUsed}</div>
         <div><b>fully_claimed:</b></div><div style="text-align:right">${fullyClaimed}</div>
@@ -164,22 +169,11 @@
         <div><b>Kết thúc:</b></div><div style="text-align:right">${end}</div>
       </div>
       <div style="text-align:center;margin-top:20px;">
-        <button id="copyVoucherBtn" style="background:#f2f2f2;color:#333;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;">Copy JSON</button>
         <a href="${listLink}" target="_blank" style="text-decoration:none;">
-          <button style="background:#4285f4;color:#fff;border:none;padding:10px 16px;margin-left:8px;border-radius:6px;cursor:pointer;">📄 List</button>
+          <button style="background:#4285f4;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;">📄 List</button>
         </a>
       </div>
     `;
-
-    document.getElementById("copyVoucherBtn").onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(JSON.stringify(voucher, null, 2));
-        alert("✅ Đã copy JSON voucher vào clipboard!");
-      } catch {
-        console.log(voucher);
-        alert("⚠️ Không thể copy — mở console để lấy dữ liệu.");
-      }
-    };
   }
 
   function escapeHtml(s) {
