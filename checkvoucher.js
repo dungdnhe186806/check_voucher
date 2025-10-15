@@ -169,9 +169,9 @@
       null;
     const iconUrl = iconHash ? `https://down-vn.img.susercontent.com/file/${iconHash}_tn` : null;
 
-    // kiểm tra nếu icon_text là shopee → thêm nền
+    // kiểm tra nếu icon_text chính xác là 'shopee'
     const applyText = voucher.icon_text || "";
-    const isShopeeIcon = applyText.toLowerCase().includes("shopee");
+    const isShopeeIcon = applyText.trim().toLowerCase() === "shopee";
 
     let iconHTML = "";
     if (iconUrl) {
