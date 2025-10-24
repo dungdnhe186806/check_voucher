@@ -4,7 +4,26 @@
     return;
   }
 
-  // 🪄 Hàm convert link sang link aff qua proxy server
+  // ✂️ Cắt ID (LIVE-, VIDEO-, FS-...)
+  function extractId(input) {
+    const clean = input.trim();
+    const match = clean.match(/(?:LIVE|VIDEO|FS)-?(\d+)/i);
+    if (match) return match[1];
+    try {
+      const url = new URL(clean);
+      return (
+        url.searchParams.get("promotionId") ||
+        url.searchParams.get("promotionid") ||
+        url.searchParams.get("promotion_id") ||
+        url.searchParams.get("promo") ||
+        clean
+      );
+    } catch {
+      return clean;
+    }
+  }
+
+  // 🪄 convert AFF
   async function convertToAff(originalLink) {
     try {
       const res = await fetch("https://conclusive-marietta-overaffected.ngrok-free.dev/convert", {
@@ -92,7 +111,7 @@
     return mappings[promotionId] || Object.values(mappings)[0];
   }
 
-  // ✅ API livestream mới
+  // ✅ API livestream
   async function fetchLiveStreamSession(streamerId) {
     try {
       const res = await fetch("https://shopee.vn/api/v4/chat/get_live_streaming_session", {
@@ -120,7 +139,8 @@
     }
   }
 
-  async function fetchVoucher(input) {
+  async function fetchVoucher(inputRaw) {
+    const input = extractId(inputRaw);
     try {
       let promotionId = "";
       let signature = "";
@@ -160,7 +180,6 @@
         return;
       }
 
-      // 🧠 Nếu có streamer_id nhưng không có shop_id thì lấy shop từ livestream
       const streamerId = voucherData.stream_rule?.streamer_ids?.[0];
       if (streamerId && !voucherData.shop_id) {
         const liveInfo = await fetchLiveStreamSession(streamerId);
@@ -169,11 +188,8 @@
           voucherData.session_id = liveInfo.session_id;
         }
       } else if (streamerId) {
-        // có shop_id nhưng vẫn có thể có session_id
         const liveInfo = await fetchLiveStreamSession(streamerId);
-        if (liveInfo) {
-          voucherData.session_id = liveInfo.session_id;
-        }
+        if (liveInfo) voucherData.session_id = liveInfo.session_id;
       }
 
       renderVoucherList([{ voucher_basic_info: voucherData }]);
@@ -183,49 +199,7 @@
     }
   }
 
-  function renderPopup() {
-    const popup = document.createElement("div");
-    popup.id = "voucherInfoPopup";
-    popup.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #fff;
-      border-radius: 16px;
-      padding: 20px;
-      z-index: 999999;
-      width: 650px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.25);
-      font-family: 'Segoe UI', Roboto, sans-serif;
-      color: #333;
-      max-height: 85vh;
-      overflow-y: auto;
-    `;
-    popup.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <h2 style="font-size:18px;margin:0;color:#EE4D2D;">Voucher Checker</h2>
-        <button id="closePopupBtn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">✖</button>
-      </div>
-      <div style="margin-bottom:10px;">
-        <textarea id="voucherLinkInput" placeholder="Dán link hoặc ID, mỗi dòng 1 cái..." rows="3" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:13px;box-sizing:border-box;"></textarea>
-        <button id="loadVoucherBtn" style="margin-top:8px;background:#EE4D2D;color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;">Tải voucher</button>
-      </div>
-      <div id="voucherContent" style="margin-top:10px;"></div>
-    `;
-    document.body.appendChild(popup);
-
-    document.getElementById("closePopupBtn").onclick = () => popup.remove();
-    document.getElementById("loadVoucherBtn").onclick = () => {
-      const input = document.getElementById("voucherLinkInput").value.trim();
-      if (!input) return;
-      const container = document.getElementById("voucherContent");
-      container.innerHTML = "";
-      const lines = input.split("\n").map((l) => l.trim()).filter(Boolean);
-      lines.forEach(fetchVoucher);
-    };
-  }
-
+  // 🧾 renderVoucherList có avatar to
   async function renderVoucherList(results) {
     const container = document.getElementById("voucherContent");
 
@@ -233,24 +207,25 @@
       const vb = item.voucher_basic_info;
       const row = document.createElement("div");
       row.style.cssText = `
-        padding: 15px;
         border: 1px solid #eee;
-        background: #fafafa;
-        border-radius: 10px;
+        background: #fff;
+        border-radius: 12px;
         margin-bottom: 12px;
-        line-height: 1.6;
+        line-height: 1.55;
+        padding: 14px 16px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.06);
         display: flex;
         gap: 14px;
+        align-items: flex-start;
       `;
 
-      const iconHash = vb.icon_hash || null;
-      const isShopeeIcon = (vb.icon_text || "").toLowerCase().includes("shopee");
-      const bgColor = vb.branding_color || (isShopeeIcon ? "#EE4D2D" : "");
-      let iconEl = "";
-      if (iconHash) {
-        iconEl = `
-          <div style="width:50px;height:50px;border-radius:10px;${bgColor ? `background:${bgColor};` : ""}display:flex;justify-content:center;align-items:center;">
-            <img src="https://down-vn.img.susercontent.com/file/${iconHash}_tn" style="height:30px;width:30px;object-fit:contain;">
+      // 🖼️ avatar — to 60px
+      let avatarHtml = "";
+      if (vb.icon_hash) {
+        avatarHtml = `
+          <div style="width:60px;height:60px;border-radius:12px;overflow:hidden;flex-shrink:0;">
+            <img src="https://down-vn.img.susercontent.com/file/${vb.icon_hash}_tn"
+                 style="width:100%;height:100%;object-fit:cover;">
           </div>`;
       }
 
@@ -265,7 +240,7 @@
       const targetShopId = vb.shop_id || vb.streamer_shop_id;
       if (targetShopId) {
         let shopLink = `https://shopee.vn/shop/${targetShopId}`;
-        shopLink = await convertToAff(shopLink); // 🪄 convert aff
+        shopLink = await convertToAff(shopLink);
         applyHtml = `<a href="${shopLink}" target="_blank" style="color:#1a73e8;text-decoration:none;">${applyText}</a>`;
       }
 
@@ -273,8 +248,8 @@
       if (vb.voucher_code) {
         const evcode = btoa(vb.voucher_code);
         let voucherLink = `https://shopee.vn/voucher/details?evcode=${encodeURIComponent(evcode)}&from_source=voucher-wallet&promotionId=${vb.promotionid}&signature=${vb.signature || ""}`;
-        voucherLink = await convertToAff(voucherLink); // 🪄 convert aff
-        mainLine = `<a href="${voucherLink}" target="_blank" style="color:#EE4D2D;text-decoration:none;font-weight:bold;">${escapeHtml(mainLine)}</a>`;
+        voucherLink = await convertToAff(voucherLink);
+        mainLine = `<a href="${voucherLink}" target="_blank" style="color:#EE4D2D;text-decoration:none;font-weight:700;">${escapeHtml(mainLine)}</a>`;
       }
 
       const percentageUsed = vb.percentage_used ?? 0;
@@ -288,35 +263,36 @@
       const startTime = formatTime(vb.start_time);
       const endTime = formatTime(vb.end_time);
       const usageLimit = vb.usage_limit_per_user ?? 0;
+
       let listLink = `https://shopee.vn/search?promotionId=${vb.promotionid}&signature=${vb.signature || ""}`;
-      listLink = await convertToAff(listLink); // 🪄 convert aff
+      listLink = await convertToAff(listLink);
 
       let streamButton = "";
       if (vb.session_id) {
         let streamLink = `https://live.shopee.vn/share?from=live&session=${vb.session_id}`;
-        streamLink = await convertToAff(streamLink); // 🪄 convert aff
+        streamLink = await convertToAff(streamLink);
         streamButton = `
-          <a href="${streamLink}" target="_blank" style="text-decoration:none;margin-left:6px;">
-            <button style="background:#1a73e8;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;">
+          <a href="${streamLink}" target="_blank" style="text-decoration:none;margin-left:8px;">
+            <button style="background:#14b8a6;color:#fff;border:none;padding:8px 12px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;">
               Xem live
             </button>
           </a>`;
       }
 
       row.innerHTML = `
-        ${iconEl}
-        <div style="flex:1;">
-          <div>${mainLine}</div>
-          ${vb.voucher_code ? `<div>- VoucherCode: ${escapeHtml(vb.voucher_code)}</div>` : ""}
-          ${applyText ? `<div>- Áp dụng: ${applyHtml}</div>` : ""}
-          ${(claimStart || claimEnd) ? `<div>- Claim: ${claimStart || "--"} | ${claimEnd || "--"}</div>` : ""}
-          ${(startTime || endTime) ? `<div>- HSD: ${startTime || "--"} | ${endTime || "--"}</div>` : ""}
-          <div>Đã dùng: ${percentageUsed}% | Đã lưu: ${percentageClaimed}%</div>
-          ${usageLimit ? `<div>Lượt dùng / user: ${usageLimit}</div>` : ""}
-          ${warnFlags.length ? `<div style="color:#d93025;">${warnFlags.join(" • ")}</div>` : ""}
-          <div style="margin-top:6px;display:flex;align-items:center;">
+        ${avatarHtml}
+        <div style="display:flex;flex-direction:column;gap:6px;flex:1;">
+          <div style="font-size:15px;">${mainLine}</div>
+          ${vb.voucher_code ? `<div style="font-size:13px;color:#555;">- Mã: <span style="font-weight:600;color:#111">${escapeHtml(vb.voucher_code)}</span></div>` : ""}
+          ${applyText ? `<div style="font-size:13px;color:#444;">- Áp dụng: ${applyHtml}</div>` : ""}
+          ${(claimStart || claimEnd) ? `<div style="font-size:12px;color:#666;">- Claim: ${claimStart || "--"} | ${claimEnd || "--"}</div>` : ""}
+          ${(startTime || endTime) ? `<div style="font-size:12px;color:#666;">- HSD: ${startTime || "--"} | ${endTime || "--"}</div>` : ""}
+          <div style="font-size:12px;color:#555;">Đã dùng: ${percentageUsed}% | Đã lưu: ${percentageClaimed}%</div>
+          ${usageLimit ? `<div style="font-size:12px;color:#555;">Lượt dùng / user: ${usageLimit}</div>` : ""}
+          ${warnFlags.length ? `<div style="font-size:12px;color:#d93025;">${warnFlags.join(" • ")}</div>` : ""}
+          <div style="margin-top:4px;display:flex;align-items:center;">
             <a href="${listLink}" target="_blank" style="text-decoration:none;">
-              <button style="background:#4285f4;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;">List</button>
+              <button style="background:#2563eb;color:#fff;border:none;padding:8px 12px;border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;">List</button>
             </a>
             ${streamButton}
           </div>
@@ -324,6 +300,74 @@
       `;
       container.appendChild(row);
     }
+  }
+
+  // 📜 Giao diện popup đẹp
+  function renderPopup() {
+    const popup = document.createElement("div");
+    popup.id = "voucherInfoPopup";
+    popup.style.cssText = `
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 18px;
+      z-index: 999999;
+      width: 680px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+      font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+      color: #111827;
+      max-height: 85vh;
+      overflow-y: auto;
+    `;
+    popup.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h2 style="font-size:18px;margin:0;color:#EE4D2D;font-weight:800;letter-spacing:.2px;">Voucher Checker</h2>
+        <button id="closePopupBtn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;">✖</button>
+      </div>
+      <div style="margin-bottom:10px;">
+        <div style="position:relative;">
+          <textarea id="voucherLinkInput"
+            placeholder="Dán link hoặc ID (hỗ trợ LIVE-xxx, VIDEO-xxx, FS-xxx...) — mỗi dòng 1 cái"
+            rows="3"
+            style="width:100%;padding:12px 14px;border: 2px solid #f3f4f6;border-radius: 12px;font-size:13.5px;line-height:1.5;box-sizing:border-box;outline:none;transition: border .15s, box-shadow .15s;background:#fafafa;">
+          </textarea>
+          <div style="position:absolute;right:10px;bottom:8px;font-size:11px;color:#9ca3af;">Enter mỗi dòng</div>
+        </div>
+        <button id="loadVoucherBtn"
+          style="margin-top:10px;background:#EE4D2D;color:#fff;border:none;padding:10px 16px;border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;letter-spacing:.2px;">
+          Tải voucher
+        </button>
+      </div>
+      <div id="voucherContent" style="margin-top:6px;"></div>
+    `;
+    document.body.appendChild(popup);
+
+    const input = popup.querySelector("#voucherLinkInput");
+    input.addEventListener("focus", () => {
+      input.style.border = "2px solid #fecaca";
+      input.style.boxShadow = "0 0 0 6px rgba(238,77,45,.07)";
+      input.style.background = "#fff";
+    });
+    input.addEventListener("blur", () => {
+      input.style.border = "2px solid #f3f4f6";
+      input.style.boxShadow = "none";
+      input.style.background = "#fafafa";
+    });
+
+    document.getElementById("closePopupBtn").onclick = () => popup.remove();
+    const btn = document.getElementById("loadVoucherBtn");
+    btn.onmouseover = () => btn.style.background = "#d94427";
+    btn.onmouseout  = () => btn.style.background = "#EE4D2D";
+    btn.onclick = () => {
+      const raw = input.value.trim();
+      if (!raw) return;
+      const container = document.getElementById("voucherContent");
+      container.innerHTML = "";
+      const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+      lines.forEach(fetchVoucher);
+    };
   }
 
   function formatTime(ts) {
@@ -363,6 +407,10 @@
       const maxDiscountFormatted = formatCurrency(discountValue || maxDiscount);
       const minSpendFormatted = formatCurrency(minSpend);
 
+      if (discountPercentage === 0) {
+       ...và phần cuối tiếp theo 👇 (đây là đoạn hoàn tất hàm `displayVoucherInfo` + escape)
+
+```javascript
       if (discountPercentage === 0) {
         return `Giảm ${maxDiscountFormatted} đơn từ ${minSpendFormatted}`;
       } else {
