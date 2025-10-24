@@ -28,103 +28,110 @@
     renderPopup();
   }
 
-  // 📡 Fetch thông tin voucher — hỗ trợ cả link và ID
-  async function fetchVoucher(input) {
-    try {
-      const trimmed = input.trim();
-      let promotionid = null;
-      let signature = null;
+  // 📡 Xử lý từng voucher
+  async function handleSingleVoucher(input) {
+    let promotionid = null;
+    let signature = null;
 
-      // 👉 Nếu chỉ nhập ID (chỉ số)
-      if (/^\d+$/.test(trimmed)) {
-        promotionid = trimmed;
+    if (/^\d+$/.test(input)) {
+      // 👉 Nếu nhập ID
+      const sigRes = await fetch("https://shopee.vn/api/v4/chat/get_voucher", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "user-agent": "okhttp/3.12.4",
+          "x-shopee-client-timezone": "Asia/Ho_Chi_Minh",
+          "content-type": "application/json; charset=UTF-8",
+        },
+        body: JSON.stringify({
+          shop_id: "0",
+          voucher_code: "0",
+          id: input,
+          is_subaccount: true,
+        }),
+      });
 
-        const sigRes = await fetch("https://shopee.vn/api/v4/chat/get_voucher", {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "user-agent": "okhttp/3.12.4",
-            "x-shopee-client-timezone": "Asia/Ho_Chi_Minh",
-            "content-type": "application/json; charset=UTF-8",
-          },
-          body: JSON.stringify({
-            shop_id: "0",
-            voucher_code: "0",
-            id: promotionid,
-            is_subaccount: true,
-          }),
-        });
+      if (!sigRes.ok) throw new Error(`Lỗi get_voucher HTTP ${sigRes.status}`);
+      const sigJson = await sigRes.json();
+      signature = sigJson?.data?.signature;
+      promotionid = input;
 
-        if (!sigRes.ok) throw new Error(`Lỗi get_voucher HTTP ${sigRes.status}`);
-        const sigJson = await sigRes.json();
-        signature = sigJson?.data?.signature;
-
-        if (!signature) {
-          alert("❌ Không lấy được signature từ ID này.");
-          return;
-        }
-      } else {
-        // 👉 Nếu nhập link
-        const url = new URL(trimmed);
-        const params = url.searchParams;
-        promotionid =
-          params.get("promotionId") ||
-          params.get("promotionid") ||
-          params.get("promotion_id") ||
-          params.get("promo");
-        signature =
-          params.get("signature") ||
-          params.get("sign") ||
-          params.get("sig");
-      }
-
-      if (!promotionid || !signature) {
-        alert("❌ Link hoặc ID không hợp lệ — thiếu promotionId / signature");
-        return;
-      }
-
-      // 📡 Gọi API voucher chính
-      const res = await fetch(
-        "https://shopee.vn/api/v2/voucher_wallet/batch_get_vouchers_by_promotion_ids",
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            accept: "application/json",
-            "content-type": "application/json",
-            "x-api-source": "pc",
-            "x-requested-with": "XMLHttpRequest",
-          },
-          body: JSON.stringify({
-            promotion_info: [
-              {
-                signature: String(signature),
-                signature_source: "0",
-                promotionid: Number(promotionid),
-                item_info: [],
-              },
-            ],
-            need_user_voucher_status: false,
-          }),
-        }
-      );
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      const voucher =
-        json?.data?.id_voucher_mappings?.[promotionid] ||
-        Object.values(json?.data?.id_voucher_mappings || {})[0];
-
-      if (!voucher) {
-        alert("❌ Không tìm thấy voucher — kiểm tra lại ID / link hoặc đăng nhập Shopee.");
-        return;
-      }
-
-      renderVoucher(voucher, promotionid, signature);
-    } catch (err) {
-      console.error(err);
-      alert("❌ Lỗi: " + err.message);
+      if (!signature) throw new Error("Không lấy được signature từ ID này.");
+    } else {
+      // 👉 Nếu nhập link
+      const url = new URL(input);
+      const params = url.searchParams;
+      promotionid =
+        params.get("promotionId") ||
+        params.get("promotionid") ||
+        params.get("promotion_id") ||
+        params.get("promo");
+      signature =
+        params.get("signature") ||
+        params.get("sign") ||
+        params.get("sig");
     }
+
+    if (!promotionid || !signature) throw new Error("Thiếu promotionId hoặc signature");
+
+    const res = await fetch(
+      "https://shopee.vn/api/v2/voucher_wallet/batch_get_vouchers_by_promotion_ids",
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          "x-api-source": "pc",
+          "x-requested-with": "XMLHttpRequest",
+        },
+        body: JSON.stringify({
+          promotion_info: [
+            {
+              signature: String(signature),
+              signature_source: "0",
+              promotionid: Number(promotionid),
+              item_info: [],
+            },
+          ],
+          need_user_voucher_status: false,
+        }),
+      }
+    );
+
+    if (!res.ok) throw new Error(`Lỗi lấy voucher HTTP ${res.status}`);
+    const json = await res.json();
+    const voucher =
+      json?.data?.id_voucher_mappings?.[promotionid] ||
+      Object.values(json?.data?.id_voucher_mappings || {})[0];
+
+    if (!voucher) throw new Error("Không tìm thấy voucher.");
+
+    return { voucher, promotionid, signature };
+  }
+
+  // 📡 Xử lý nhiều voucher
+  async function fetchMultipleVouchers(rawInput) {
+    const container = document.getElementById("voucherContent");
+    container.innerHTML = `<div style="text-align:center;color:#999;">⏳ Đang tải...</div>`;
+
+    const lines = rawInput
+      .split(/\n|,/)
+      .map(l => l.trim())
+      .filter(Boolean);
+
+    const results = [];
+
+    for (const line of lines) {
+      try {
+        const data = await handleSingleVoucher(line);
+        results.push({ ...data, error: null });
+      } catch (err) {
+        results.push({ input: line, error: err.message });
+      }
+    }
+
+    renderVoucherList(results);
   }
 
   // 🧾 Popup UI
@@ -143,7 +150,7 @@
       border-radius: 16px;
       padding: 20px;
       z-index: 999999;
-      max-width: 480px;
+      max-width: 520px;
       width: 90%;
       box-shadow: 0 8px 30px rgba(0,0,0,0.25);
       font-family: 'Segoe UI', Roboto, sans-serif;
@@ -157,107 +164,95 @@
         <button id="closePopupBtn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;">✖</button>
       </div>
       <div style="margin-bottom:12px;text-align:center;">
-        <input type="text" id="voucherLinkInput" placeholder="Dán link hoặc nhập ID voucher Shopee..."
-          style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;box-sizing:border-box;">
+        <textarea id="voucherLinkInput" placeholder="Dán link hoặc ID voucher (có thể nhiều dòng)..."
+          style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;box-sizing:border-box;height:100px;"></textarea>
         <button id="loadVoucherBtn" style="margin-top:10px;background:#EE4D2D;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;font-weight:bold;">
           Tải voucher
         </button>
       </div>
-      <div id="voucherContent" style="margin-top:15px;"></div>
+      <div id="voucherContent" style="margin-top:15px;max-height:400px;overflow-y:auto;"></div>
     `;
 
     document.body.appendChild(popup);
     document.getElementById("closePopupBtn").onclick = () => popup.remove();
     document.getElementById("loadVoucherBtn").onclick = () => {
-      const link = document.getElementById("voucherLinkInput").value.trim();
-      if (link) fetchVoucher(link);
+      const input = document.getElementById("voucherLinkInput").value.trim();
+      if (input) fetchMultipleVouchers(input);
     };
-    document.getElementById("voucherLinkInput").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") {
-        const link = e.target.value.trim();
-        if (link) fetchVoucher(link);
-      }
-    });
   }
 
-  // 🪄 Hiển thị thông tin voucher
-  function renderVoucher(voucher, promotionid, signature) {
+  // 🪄 Hiển thị danh sách voucher
+  function renderVoucherList(results) {
     const container = document.getElementById("voucherContent");
-    if (!container) return;
+    container.innerHTML = "";
 
-    let displayName = "Voucher";
-    if (voucher.voucher_card?.props?.title) {
-      const t = voucher.voucher_card.props.title || "";
-      const s = voucher.voucher_card.props.subtitle || "";
-      displayName = `${t}${s ? " " + s : ""}`;
-    } else if (voucher.spp_display_info?.voucher_header) {
-      displayName = voucher.spp_display_info.voucher_header;
-    } else if (voucher.icon_text) {
-      displayName = voucher.icon_text;
-    } else if (voucher.title) {
-      displayName = voucher.title;
-    }
+    results.forEach(item => {
+      const row = document.createElement("div");
+      row.style.cssText = `
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      `;
 
-    const iconHash = voucher.voucher_card?.props?.icon_hash || voucher.icon_hash || null;
-    const iconUrl = iconHash ? `https://down-vn.img.susercontent.com/file/${iconHash}_tn` : null;
-
-    const applyText = voucher.icon_text || "";
-    const isShopeeIcon = applyText.trim().toLowerCase() === "shopee";
-
-    let iconHTML = "";
-    if (iconUrl) {
-      if (isShopeeIcon) {
-        iconHTML = `
-          <div style="background:#EE4D2D;display:inline-flex;align-items:center;justify-content:center;
-            border-radius:12px;padding:6px;margin-bottom:10px;">
-            <img src="${iconUrl}" style="height:60px;">
-          </div>`;
-      } else {
-        iconHTML = `<img src="${iconUrl}" style="height:70px;border-radius:8px;margin-bottom:10px;">`;
+      if (item.error) {
+        row.innerHTML = `
+          <div style="color:#d93025;font-size:14px;">❌ ${escapeHtml(item.input)}</div>
+          <div style="font-size:12px;color:#888;">${escapeHtml(item.error)}</div>
+        `;
+        container.appendChild(row);
+        return;
       }
-    }
 
-    const code = voucher.voucher_code || "(Không có)";
-    const percentageUsed = voucher.percentage_used ?? 0;
-    const percentageClaimed = voucher.percentage_claimed ?? 0;
-    const fullyUsed = voucher.fully_used;
-    const fullyClaimed = voucher.fully_claimed;
-    const usageLimit = voucher.usage_limit_per_user ?? "—";
-    const start = voucher.start_time ? new Date(voucher.start_time * 1000).toLocaleString("vi-VN") : "—";
-    const end = voucher.end_time ? new Date(voucher.end_time * 1000).toLocaleString("vi-VN") : "—";
+      const { voucher, promotionid, signature } = item;
 
-    const listLink = `https://shopee.vn/search?promotionId=${promotionid}&signature=${signature}`;
-    const barWidthUsed = Math.min(percentageUsed, 100);
-    const progressBar = `
-      <div style="margin-top:10px;height:8px;background:#eee;border-radius:6px;overflow:hidden;">
-        <div style="width:${barWidthUsed}%;background:#EE4D2D;height:100%;"></div>
-      </div>
-      <div style="text-align:right;font-size:12px;color:#555;">${percentageUsed}% đã dùng</div>
-      ${fullyUsed ? `<div style="color:#d93025;font-weight:bold;text-align:center;margin-top:6px;">⚠️ Tối đa lượt dùng</div>` : ""}
-    `;
+      // 🖼️ icon
+      const iconHash = voucher.voucher_card?.props?.icon_hash || voucher.icon_hash || null;
+      const iconUrl = iconHash ? `https://down-vn.img.susercontent.com/file/${iconHash}_tn` : null;
+      const applyText = voucher.icon_text || "";
+      const isShopeeIcon = applyText.trim().toLowerCase() === "shopee";
 
-    container.innerHTML = `
-      <div style="text-align:center;margin-bottom:20px;">
-        ${iconHTML}
-        <h3 style="color:#EE4D2D;margin:0;font-size:18px;">${escapeHtml(displayName)}</h3>
-        ${applyText ? `<div style="font-size:13px;color:#555;margin-top:4px;">Áp dụng: ${escapeHtml(applyText)}</div>` : ""}
-        ${progressBar}
-      </div>
-      <div style="display:grid;grid-template-columns: 1fr 1fr;gap:10px;font-size:14px;">
-        <div><b>Code:</b></div><div style="text-align:right">${code}</div>
-        <div><b>Giới hạn/user:</b></div><div style="text-align:right">${usageLimit}</div>
-        <div><b>fully_used:</b></div><div style="text-align:right">${fullyUsed}</div>
-        <div><b>fully_claimed:</b></div><div style="text-align:right">${fullyClaimed}</div>
-        <div><b>percentage_claimed:</b></div><div style="text-align:right">${percentageClaimed}</div>
-        <div><b>Bắt đầu:</b></div><div style="text-align:right">${start}</div>
-        <div><b>Kết thúc:</b></div><div style="text-align:right">${end}</div>
-      </div>
-      <div style="text-align:center;margin-top:20px;">
-        <a href="${listLink}" target="_blank" style="text-decoration:none;">
-          <button style="background:#4285f4;color:#fff;border:none;padding:10px 16px;border-radius:6px;cursor:pointer;">List</button>
-        </a>
-      </div>
-    `;
+      let iconHTML = "";
+      if (iconUrl) {
+        iconHTML = isShopeeIcon
+          ? `<div style="background:#EE4D2D;border-radius:10px;padding:4px;display:flex;align-items:center;justify-content:center;"><img src="${iconUrl}" style="height:30px;"></div>`
+          : `<img src="${iconUrl}" style="height:30px;border-radius:6px;">`;
+      }
+
+      // 🧾 nội dung chính
+      const displayName =
+        voucher.voucher_card?.props?.title ||
+        voucher.spp_display_info?.voucher_header ||
+        voucher.icon_text ||
+        voucher.title ||
+        "Voucher";
+
+      const percentageUsed = voucher.percentage_used ?? 0;
+      const percentageClaimed = voucher.percentage_claimed ?? 0;
+
+      const statusText = [];
+      if (voucher.fully_used) statusText.push("⚠️ Tối đa lượt dùng");
+      if (voucher.fully_claimed) statusText.push("⚠️ Tối đa lượt lưu");
+
+      row.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;">
+          ${iconHTML}
+          <div>
+            <div style="font-weight:600;color:#EE4D2D;">${escapeHtml(displayName)}</div>
+            ${applyText ? `<div style="font-size:12px;color:#555;">Áp dụng: ${escapeHtml(applyText)}</div>` : ""}
+            ${statusText.length ? `<div style="color:#d93025;font-size:12px;">${statusText.join(" • ")}</div>` : ""}
+          </div>
+        </div>
+        <div style="text-align:right;font-size:13px;">
+          <div>Đã dùng: ${percentageUsed}%</div>
+          <div>Đã lưu: ${percentageClaimed}%</div>
+        </div>
+      `;
+
+      container.appendChild(row);
+    });
   }
 
   function escapeHtml(s) {
