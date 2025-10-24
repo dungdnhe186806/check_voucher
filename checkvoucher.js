@@ -57,7 +57,7 @@
 
         if (!sigRes.ok) throw new Error(`Lỗi get_voucher HTTP ${sigRes.status}`);
         const sigJson = await sigRes.json();
-        signature = sigJson?.data?.voucher?.signature;
+        signature = sigJson?.data?.signature;
 
         if (!signature) {
           alert("❌ Không lấy được signature từ ID này.");
