@@ -4,6 +4,22 @@
     return;
   }
 
+  // 🪄 Hàm convert link sang link aff qua proxy server
+  async function convertToAff(originalLink) {
+    try {
+      const res = await fetch("https://conclusive-marietta-overaffected.ngrok-free.dev/convert", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ originalLink })
+      });
+      const data = await res.json();
+      return data.shortLink || originalLink;
+    } catch (e) {
+      console.error("❌ Lỗi convert aff:", e);
+      return originalLink;
+    }
+  }
+
   async function checkLogin() {
     try {
       const res = await fetch("https://shopee.vn/api/v4/account/basic/get_account_info", {
@@ -210,10 +226,10 @@
     };
   }
 
-  function renderVoucherList(results) {
+  async function renderVoucherList(results) {
     const container = document.getElementById("voucherContent");
 
-    results.forEach((item) => {
+    for (const item of results) {
       const vb = item.voucher_basic_info;
       const row = document.createElement("div");
       row.style.cssText = `
@@ -248,15 +264,16 @@
       let applyHtml = applyText;
       const targetShopId = vb.shop_id || vb.streamer_shop_id;
       if (targetShopId) {
-        applyHtml = `<a href="https://shopee.vn/shop/${targetShopId}" target="_blank" style="color:#1a73e8;text-decoration:none;">${applyText}</a>`;
+        let shopLink = `https://shopee.vn/shop/${targetShopId}`;
+        shopLink = await convertToAff(shopLink); // 🪄 convert aff
+        applyHtml = `<a href="${shopLink}" target="_blank" style="color:#1a73e8;text-decoration:none;">${applyText}</a>`;
       }
 
       let mainLine = displayVoucherInfo({ data: { voucher_basic_info: vb } });
       if (vb.voucher_code) {
         const evcode = btoa(vb.voucher_code);
-        const voucherLink = `https://shopee.vn/voucher/details?evcode=${encodeURIComponent(
-          evcode
-        )}&from_source=voucher-wallet&promotionId=${vb.promotionid}&signature=${vb.signature || ""}`;
+        let voucherLink = `https://shopee.vn/voucher/details?evcode=${encodeURIComponent(evcode)}&from_source=voucher-wallet&promotionId=${vb.promotionid}&signature=${vb.signature || ""}`;
+        voucherLink = await convertToAff(voucherLink); // 🪄 convert aff
         mainLine = `<a href="${voucherLink}" target="_blank" style="color:#EE4D2D;text-decoration:none;font-weight:bold;">${escapeHtml(mainLine)}</a>`;
       }
 
@@ -271,11 +288,13 @@
       const startTime = formatTime(vb.start_time);
       const endTime = formatTime(vb.end_time);
       const usageLimit = vb.usage_limit_per_user ?? 0;
-      const listLink = `https://shopee.vn/search?promotionId=${vb.promotionid}&signature=${vb.signature || ""}`;
+      let listLink = `https://shopee.vn/search?promotionId=${vb.promotionid}&signature=${vb.signature || ""}`;
+      listLink = await convertToAff(listLink); // 🪄 convert aff
 
       let streamButton = "";
       if (vb.session_id) {
-        const streamLink = `https://live.shopee.vn/share?from=live&session=${vb.session_id}`;
+        let streamLink = `https://live.shopee.vn/share?from=live&session=${vb.session_id}`;
+        streamLink = await convertToAff(streamLink); // 🪄 convert aff
         streamButton = `
           <a href="${streamLink}" target="_blank" style="text-decoration:none;margin-left:6px;">
             <button style="background:#1a73e8;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;">
@@ -304,7 +323,7 @@
         </div>
       `;
       container.appendChild(row);
-    });
+    }
   }
 
   function formatTime(ts) {
