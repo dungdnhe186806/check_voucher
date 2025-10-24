@@ -1,12 +1,12 @@
 /* Shopee Farm Helper v2.4 */
 (()=>{
-const GAME_URL="https://games.shopee.vn/farm/share.html";
+const REQUIRED_URL="https://games.shopee.vn/farm/share.html";
 const API_BASE="https://games.shopee.vn/farm/api";
 let state={running:false,what:null};
 let hasShownFirstMessage=false;
 let lastShopProps=[];
 
-/* 🧭 DOM Helper */
+/* 🌿 DOM Helper */
 function q(s){return document.querySelector(s)}
 function qAll(s){return Array.from(document.querySelectorAll(s))}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
@@ -16,7 +16,7 @@ function log(...a){
   box.scrollTop = box.scrollHeight;
 }
 
-/* 🧰 Panel style + UI */
+/* 🧰 Style */
 const STYLE=`#sf_panel{position:fixed;top:20px;right:20px;z-index:999999;background:#111827;color:#E5E7EB;border:1px solid #374151;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.4);width:600px;max-height:90vh;display:flex;flex-direction:column;font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
 #sf_head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #1F2937;font-weight:600;cursor:move;user-select:none}
 #sf_btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px}
@@ -34,7 +34,7 @@ const STYLE=`#sf_panel{position:fixed;top:20px;right:20px;z-index:999999;backgro
 #sf_close{background:transparent;border:0;color:#9CA3AF;cursor:pointer;font-weight:700}
 #sf_close:hover{color:#F87171}`;
 
-/* 🪄 Inject UI */
+/* 🪄 UI */
 function inject(){
   if(q("#sf_panel")) return;
   const st=document.createElement("style");st.textContent=STYLE;document.head.appendChild(st);
@@ -67,7 +67,7 @@ function inject(){
   bind();
 }
 
-/* 🖱️ Panel kéo thả */
+/* 🖱️ Draggable */
 function makeDraggable(panel,handle){
   let offsetX=0,offsetY=0,isDown=false;
   handle.addEventListener("mousedown",e=>{
@@ -88,27 +88,27 @@ function makeDraggable(panel,handle){
   });
 }
 
-/* 🧭 Chặn chạy sai domain */
+/* 🧭 Check đúng trang */
 async function ensureGameOpen(){
-  if(location.href.startsWith(GAME_URL)){
+  if(location.href.startsWith(REQUIRED_URL)){
     if(!hasShownFirstMessage){
       log("📌 Bookmarklet sẵn sàng — đang dùng cookie trình duyệt.");
       hasShownFirstMessage=true;
     }
     return true;
   } else {
-    const w=window.open(GAME_URL,"_blank");
+    const w=window.open(REQUIRED_URL,"_blank");
     if(!w){
-      alert(`⚠️ Bạn phải ở trang ${GAME_URL} mới chạy script này!`);
+      alert(`⚠️ Bạn phải ở trang ${REQUIRED_URL} mới chạy script này!`);
       return false;
     }
     try{w.focus();}catch{}
-    log(`⚡ Đã mở tab ${GAME_URL}. Vui lòng chạy lại bookmarklet trên tab đó.`);
+    log(`⚡ Đã mở tab ${REQUIRED_URL}. Vui lòng chạy lại bookmarklet trên tab đó.`);
     return false;
   }
 }
 
-/* 🌱 Gọi API */
+/* 🧾 API */
 async function callApi(endpoint,method="GET",payload=null){
   const opts={method,credentials:"include",headers:{}};
   if(method!=="GET"&&payload!=null){
@@ -122,7 +122,7 @@ async function callApi(endpoint,method="GET",payload=null){
   }catch(e){return{error:e.message}};
 }
 
-/* 🧮 Level */
+/* 🪴 Level info */
 function levelInfo(crop){
   const st=(crop?.state??-1),expNow=(crop?.exp??0);
   const lc=crop?.meta?.config?.levelConfig||{};
@@ -135,7 +135,7 @@ function levelInfo(crop){
   return {st,expNow,before,tot,max,need};
 }
 
-/* 🧭 UI Actions */
+/* 🌿 Actions */
 async function renderStatus(){
   const ctx=await callApi("/orchard/context/get?skipGuidance=1&pre=1");
   if(ctx?.error) return log("Lỗi status:",ctx.error);
@@ -307,20 +307,10 @@ function stop(){
   } else log("Không có tác vụ nào đang chạy");
 }
 
-/* 🔘 Bind nút */
+/* 🖲️ Bind nút */
 function bind(){
   q("#sf_status").onclick=async()=>{if(await ensureGameOpen())renderStatus()};
   q("#sf_bag").onclick=async()=>{if(await ensureGameOpen())renderBag()};
   q("#sf_shop").onclick=async()=>{if(await ensureGameOpen())renderShop()};
   q("#sf_harvest").onclick=async()=>{if(await ensureGameOpen())harvest()};
-  q("#sf_autowater").onclick=async()=>{if(await ensureGameOpen())autowater()};
-  q("#sf_autofarm").onclick=async()=>{if(await ensureGameOpen())autofarm()};
-}
-
-/* 🚀 Khởi chạy */
-(async()=>{
-  inject();
-  const onGame=location.href.startsWith(GAME_URL);
-  if(!onGame) await ensureGameOpen();
-})();
-})();
+  q("#sf_autowater
